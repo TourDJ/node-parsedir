@@ -2,7 +2,8 @@ var fs = require("fs")
 const path = require("path")
 const readPDF = require('read-pdf-as-png')
 
-function genIndex(batchId, source, transDir) {
+//
+async function genIndex(batchId, source, transDir) {
 	let datas = [], index, images;
 
 	if(!batchId || !source)
@@ -18,19 +19,22 @@ function genIndex(batchId, source, transDir) {
 	if(catalogs && catalogs instanceof Array) {
 		let cataId, voluId;
 
-		catalogs.forEach(function(catalog) {
+		for(let catalog of catalogs){
 			if(catalog) {
 				cataId = catalog.cataId;
 				voluId = catalog.voluId;
 
 				images = parseImages(source, cataId, voluId);
+
 				if(images && images instanceof Array) {
-					images.forEach(function(image){
+					for(let i = 0, len = images.length; i < len; i++) {
+						let image = images[i];
+
 						if(image) {
 							let url;
 							const extname = path.extname(image);
 							if (extname === '.pdf' && transDir) {
-								url = transPDF(source, transDir, cataId, voluId, image)
+								url = await transPDF(source, transDir, cataId, voluId, image);
 							} else {
 								url = path.join(cataId, cataId + '-' + voluId, image);
 							}
@@ -39,20 +43,23 @@ function genIndex(batchId, source, transDir) {
 								batchId: batchId,
 								cataId: cataId,
 								voluId: voluId,
-								image: image,
-								url: url
+								url: url,
+								page: i + 1
 							};
 						}
 						datas.push(index);
-					});
+					}
 				}
 			}
-		});
+		}
 	}
 
 	return datas;
 }
 
+/**
+* 将 PDF 文件转换成 PNG 格式，并保存到新的目录
+*/
 async function transPDF(src, dest, cataId, voluId, image) {
 	let tempUrl = path.join(cataId, cataId + '-' + voluId, image);
 	let urlObj = path.parse(tempUrl);
@@ -82,9 +89,10 @@ async function transPDF(src, dest, cataId, voluId, image) {
     return newUrl;
 }
 
+//将新生成的 PNG 文件移动到指定目录下
 function saveImage(src, dest, _path) {
-	let sourceFile = path.join(src, _path);
-	let destPath = path.join(dest, _path);
+	let sourceFile = path.join(src, _path); //源路径
+	let destPath = path.join(dest, _path);	//新路径
 	let dirPath = path.dirname(destPath);
 
 	if(!fs.existsSync(dirPath)) {
@@ -113,6 +121,7 @@ function mkdirsSync(dirname, mode){
     }
 }
 
+// 读取卷册下的影像文件
 function parseImages(source, cataId, voluId) {
 	let images = [], _path;
 
@@ -125,5 +134,7 @@ function parseImages(source, cataId, voluId) {
 	return images;
 }
 
-let datas = genIndex("20180424", "E:\\nodejsproject\\parsedir", "E:\\nodejsproject\\parsedir\\SZ")
-console.log(datas)
+(async function test(){
+	let datas = await genIndex("20180424", "E:\\nodejs_project\\node-parsedir", "E:\\nodejs_project\\node-parsedir\\SZ")
+	console.log(datas)	
+})()
